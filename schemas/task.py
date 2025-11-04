@@ -34,7 +34,7 @@ class TaskUpdate(BaseModel):
     @field_validator('due date')
     def validate_due_date(cls, v):
 
-        if v and v < datetime.utcnow():
+        if v and v < datetime.now(timezone.utc):
             raise ValueError('Due date must be in the future')
         return v
 

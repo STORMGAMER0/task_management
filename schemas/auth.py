@@ -6,12 +6,14 @@ from models.user import UserRole
 
 class RegisterUser(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=100)
+    password: str
     full_name: str = Field(..., max_length=100)
     role: Optional[UserRole] = None
 
     @field_validator('password')
     def validate_password(cls, v) -> str:
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
         if not any(char.isdigit() for char in v):
             raise ValueError('password must contain at least one digit')
         if not any(char.isupper() for char in v):

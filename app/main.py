@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from core.config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db
-
+from app.api.v1.endpoints.auth import auth_router
 setup_logging()
 logger = get_logger(__name__)
 
@@ -38,7 +38,7 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
-
+app.include_router(auth_router)
 
 @app.middleware("http")
 async def add_request_id_middleware(request: Request, call_next):

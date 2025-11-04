@@ -25,4 +25,4 @@ class Tag(Base):
 
     def __repr__(self):
         return f"<Tag(id={self.id}, name='{self.name}', color='{self.color}')>"
-    task = relationship("Task", back_populates="tag")
+    tasks = relationship("Task",secondary=task_tags, back_populates="tag")

@@ -15,12 +15,12 @@ Base = declarative_base()
 
 
 async def init_db():
-    """
-    Verify database connection on startup.
-    Tables should be created via Alembic migrations.
-    """
-    logger.info("Verifying database connection...")
 
+    logger.info("Verifying database connection...")
+    from models.user import User
+    from models.task import Task  # ← Make sure this exists
+    from models.comment import Comment
+    from models.tag import Tag, task_tags
     try:
         async with engine.begin() as conn:
             # Test connection

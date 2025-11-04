@@ -38,6 +38,7 @@ class Task(Base):
     assignee = relationship("User", foreign_keys=[assigned_to], back_populates= "task_assigned" )
     comment = relationship("comment", back_populates="task", cascade="all, delete-orphan")
     tags = relationship('Tag', secondary=task_tags, back_populates='tasks')
+
     __table_args__ = (
         Index('ix_tasks_created_by_status', 'created_by', 'status'),
         Index('ix_tasks_assigned_to_status', 'assigned_to', 'status'),

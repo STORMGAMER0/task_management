@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 
-from sqlalchemy import UUID
+from uuid import UUID
 
 from models.user import UserRole
 
