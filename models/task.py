@@ -36,7 +36,7 @@ class Task(Base):
 
     creator = relationship("User", foreign_keys=[created_by], back_populates= "task_created")
     assignee = relationship("User", foreign_keys=[assigned_to], back_populates= "task_assigned" )
-    comment = relationship("comment", back_populates="task", cascade="all, delete-orphan")
+    comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
     tags = relationship('Tag', secondary=task_tags, back_populates='tasks')
 
     __table_args__ = (

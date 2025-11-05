@@ -34,7 +34,7 @@ class AuthService:
             hashed_password = hash_password(user_data.password)
             new_user = User(
                 email = user_data.email,
-                hashed_password = hash_password,
+                password_hash = hashed_password,
                 full_name = user_data.full_name,
                 role = UserRole.MEMBER
             )

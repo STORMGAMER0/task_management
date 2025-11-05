@@ -5,7 +5,7 @@ from pydantic import BaseModel,Field, field_validator
 from typing import Optional
 from models.task import TaskStatus, TaskPriority
 from schemas.user import UserResponse
-
+from schemas.tag import TagResponse
 
 class TaskBase:
     title: str = Field(..., min_length=2, max_length=150)
