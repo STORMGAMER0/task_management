@@ -69,8 +69,13 @@ class AuthService:
                 detail= "incorrect email or password"
             )
 
-        if not verify_password(login_data.password, user.hashed_password):
-            logger.warning(f"failed login attempt for user: {user.email}")
+        logger.info(f"User found: {user.email}, checking password...")
+
+        is_valid = verify_password(login_data.password, user.password_hash)
+        logger.info(f"Password verification result: {is_valid}")  # ← Add this
+
+        if not is_valid:
+            logger.warning(f"Invalid password for user: {user.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password"
