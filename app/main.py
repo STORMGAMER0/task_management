@@ -7,6 +7,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
+from app.api.v1.endpoints.users import user_router
 from core.config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db
@@ -39,6 +40,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 app.include_router(auth_router)
+app.include_router(user_router)
 
 @app.middleware("http")
 async def add_request_id_middleware(request: Request, call_next):
