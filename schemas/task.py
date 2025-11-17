@@ -7,14 +7,14 @@ from models.task import TaskStatus, TaskPriority
 from schemas.user import UserResponse
 from schemas.tag import TagResponse
 
-class TaskBase:
+class TaskBase(BaseModel):
     title: str = Field(..., min_length=2, max_length=150)
     description: Optional[str] = Field(None, max_length=400)
     priority: TaskPriority = TaskPriority.MEDIUM
-    due_date:Optional[datetime]
+    due_date:Optional[datetime] = None
 
 class TaskCreate(TaskBase):
-    assigned_to : Optional[UUID]
+    assigned_to : Optional[UUID] = None
 
     @field_validator('due_date')
     def validate_due_date(cls, v):
@@ -31,12 +31,7 @@ class TaskUpdate(BaseModel):
     due_date: Optional[datetime] = None
     assigned_to: Optional[UUID] = None
 
-    @field_validator('due date')
-    def validate_due_date(cls, v):
 
-        if v and v < datetime.now(timezone.utc):
-            raise ValueError('Due date must be in the future')
-        return v
 
 class TaskResponse(BaseModel):
     id: UUID

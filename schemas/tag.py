@@ -6,13 +6,13 @@ import re
 
 class TagBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
-    color: str = Field(..., regex="^#[0-9A-Fa-f]{6}$")
+    color: str = Field(..., pattern="^#[0-9A-Fa-f]{6}$")
 
-    @field_validator('color')
-    def validate_color(cls, v):
+    @field_validator('name')
+    def validate_name(cls, v):
         return v.strip().lower()
 
-    @validate_color('color')
+    @field_validator('color')
     def validate_color(cls, v):
         return v.upper()
 
@@ -22,7 +22,7 @@ class TagCreate(TagBase):
 
 class TagUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=50)
-    color: Optional[str] = Field(None, regex="^#[0-9A-Fa-f]{6}$")
+    color: Optional[str] = Field(None, pattern="^#[0-9A-Fa-f]{6}$")
 
     @field_validator('name')
     def validate_name(cls, v):

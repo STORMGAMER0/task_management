@@ -23,7 +23,7 @@ class Task(Base):
     __tablename__ = "tasks"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(String(150), nullable=False, index = True)
-    description = Column(String(400))
+    description = Column(String(400), nullable=True)
     status = Column(Enum(TaskStatus, name = "task_status"), nullable = False, default=TaskStatus.TODO, index = True)
     priority = Column(Enum(TaskPriority, name="task_priority"), nullable=False, default=TaskPriority.MEDIUM, index = True)
     due_date = Column (DateTime(timezone=True), nullable = True, index = True)
