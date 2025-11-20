@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from models.task import TaskPriority
 from models.user import User
-from schemas.task import TaskCreate, TaskUpdate, TaskStatus, TaskResponse
+from schemas.task import TaskCreate, TaskUpdate, TaskStatus, TaskResponse, TaskListResponse
 from app.api.dependencies import get_current_user
 from services.task import TaskService
 
@@ -18,7 +18,7 @@ async def create_task(task: TaskCreate, current_user: User= Depends(get_current_
     new_task = await TaskService.create_task(db,task,current_user.id)
     return new_task
 
-@task_router.get("/", response_model=list[TaskResponse], status_code=status.HTTP_200_OK)
+@task_router.get("/", response_model=TaskListResponse, status_code=status.HTTP_200_OK)
 async def get_tasks(status:Optional[TaskStatus] = Query(None, description="filter by status"),
                     priority: Optional[TaskPriority] = Query(None, description="filter by priority"),
                     search: Optional[str] = Query(None, description="search in title and description"),

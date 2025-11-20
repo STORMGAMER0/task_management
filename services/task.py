@@ -6,6 +6,7 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.task import Task, TaskStatus, TaskPriority
 from schemas.task import TaskCreate, TaskUpdate
@@ -51,9 +52,12 @@ class TaskService:
     async def get_tasks(db: AsyncSession, current_user: User, status: Optional[TaskStatus] = None,
                         priority: Optional[TaskPriority] = None, search: Optional[str] = None,
                         assigned_to: Optional[UUID] = None, sort_by: str = "created_at",
-                        order: str = "desc", page: int = 1, limit: int = 10 ):
+                        order: str = "desc", page: int = 1, limit: int = 10):
 
-        query = select(Task)
+        query = select(Task).options(
+        selectinload(Task.creator),
+        selectinload(Task.assignee)
+    )
 
         if current_user.role == UserRole.MEMBER:
             query = query.where(
@@ -84,7 +88,6 @@ class TaskService:
             query = query.order_by(getattr(Task, sort_by).asc())
         else:
             query = query.order_by(getattr(Task, sort_by).desc())
-
 
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await db.execute(count_query)
