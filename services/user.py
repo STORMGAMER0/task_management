@@ -5,20 +5,36 @@ from fastapi import HTTPException, status
 
 from models.user import User
 from core.logger import get_logger
-from schemas.user import UserUpdate
+from schemas.user import UserUpdate, UserResponse
 from core.security import hash_password
+from services.cache import (
+    get_cached_user_profile,
+    cache_user_profile,
+    invalidate_user_cache
+)
 
 logger = get_logger(__name__)
 
 class UserService:
     @staticmethod
     async def get_user_by_id(db: AsyncSession, user_id: str):
+        cached_user = await get_cached_user_profile(user_id)
+        if cached_user:
+            logger.info(f"User {user_id} retrieved from cache")
+            result = await db.execute(select(User).where(User.id == user_id))
+            return result.scalar_one_or_none()
+
         result = await db.execute(select(User). where(User.id == user_id))
         user = result.scalar_one_or_none()
 
         if not user:
             logger.warning(f"get user request by id {user_id} failed")
             raise HTTPException(status_code= status.HTTP_404_NOT_FOUND, detail="user not found")
+        user_dict = UserResponse.model_validate(user).model_dump()
+        await cache_user_profile(user_id, user_dict)
+        logger.info(f"User {user_id} cached for future requests")
+
+
         return user
 
     @staticmethod
@@ -45,11 +61,16 @@ class UserService:
             db.add(user)
             await db.commit()
             await db.refresh(user)
+
+            await invalidate_user_cache(str(user.id))
+            logger.info(f"User {user.id} updated and cache invalidated")
+            return user
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"user email is{user.email}")
             await db.rollback()
             raise ValueError(f"Failed to update user: {str(e)}")
-        return user
 
 
 

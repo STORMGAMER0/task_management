@@ -4,7 +4,6 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy import select, func, or_
 from sqlalchemy.exc import IntegrityError
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +11,12 @@ from models.task import Task, TaskStatus, TaskPriority
 from schemas.task import TaskCreate, TaskUpdate
 from core.logger import get_logger
 from models.user import User, UserRole
+from services.cache import (get_cached_task_list, cache_task_list,
+                            invalidate_all_task_lists,
+                            get_cached_task_detail,
+                            cache_task_detail,
+                            invalidate_task_cache
+                            )
 
 logger = get_logger(__name__)
 
@@ -33,6 +38,8 @@ class TaskService:
         try:
             await db.commit()
             await db.refresh(new_task)
+
+            await invalidate_all_task_lists()
             logger.info(f"Task created with id {new_task.id}")
             return new_task
 
@@ -54,10 +61,26 @@ class TaskService:
                         assigned_to: Optional[UUID] = None, sort_by: str = "created_at",
                         order: str = "desc", page: int = 1, limit: int = 10):
 
+        filters = {
+            "status": status.value if status else None,
+            "priority": priority.value if priority else None,
+            "search": search,
+            "assigned_to": str(assigned_to) if assigned_to else None,
+            "sort_by": sort_by,
+            "order": order,
+            "page": page,
+            "limit": limit
+        }
+
+        cached_result = await get_cached_task_list(str(current_user.id), filters)
+        if cached_result:
+            logger.info(f"Task list retrieved from cache for user {current_user.id}")
+            return cached_result
+
         query = select(Task).options(
-        selectinload(Task.creator),
-        selectinload(Task.assignee)
-    )
+            selectinload(Task.creator),
+            selectinload(Task.assignee)
+        )
 
         if current_user.role == UserRole.MEMBER:
             query = query.where(
@@ -101,13 +124,44 @@ class TaskService:
 
         total_pages = (total_count + limit - 1) // limit
 
-        logger.info(f"user{current_user.id} fetched tasks (page{page}")
-
-        return {
-            "tasks": tasks,
+        response = {
+            "tasks": [
+                {
+                    "id": str(task.id),
+                    "title": task.title,
+                    "description": task.description,
+                    "status": task.status.value,
+                    "priority": task.priority.value,
+                    "due_date": task.due_date.isoformat() if task.due_date else None,
+                    "created_by": str(task.created_by),
+                    "assigned_to": str(task.assigned_to) if task.assigned_to else None,
+                    "created_at": task.created_at.isoformat(),
+                    "updated_at": task.updated_at.isoformat()
+                }
+                for task in tasks
+            ],
             "total": total_count,
             "page": page,
             "limit": limit,
             "total_pages": total_pages
         }
+
+        # Cache the result
+        await cache_task_list(str(current_user.id), filters, response)
+        logger.info(f"Task list cached for user {current_user.id}")
+
+        return response
+        # logger.info(f"user{current_user.id} fetched tasks (page{page}")
+        #
+        # return {
+        #     "tasks": tasks,
+        #     "total": total_count,
+        #     "page": page,
+        #     "limit": limit,
+        #     "total_pages": total_pages
+        # }
+
+    @staticmethod
+    async def get
+
 
