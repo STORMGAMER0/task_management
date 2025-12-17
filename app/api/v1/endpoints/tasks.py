@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from models.task import TaskPriority
 from models.user import User
-from schemas.task import TaskCreate, TaskUpdate, TaskStatus, TaskResponse, TaskListResponse
+from schemas.task import TaskCreate, TaskUpdate, TaskStatus, TaskResponse, TaskListResponse, TaskDetailResponse
 from app.api.dependencies import get_current_user
 from services.task import TaskService
 
@@ -43,4 +43,32 @@ async def get_tasks(status:Optional[TaskStatus] = Query(None, description="filte
         limit=limit)
 
     return tasks
+
+@task_router.get("/{task_id}", response_model=TaskDetailResponse, status_code=status.HTTP_200_OK)
+async def get_task(task_id:str, current_user: User= Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    task = await TaskService.get_task_by_id(db, task_id, current_user)
+
+    # Convert to response format
+    tags_list = list(task.tags) if task.tags else []
+
+
+    comments_count = len(list(task.comments)) if task.comments else 0
+
+
+    return TaskDetailResponse(
+        id=task.id,
+        title=task.title,
+        description=task.description,
+        status=task.status,
+        priority=task.priority,
+        due_date=task.due_date,
+        created_by=task.created_by,
+        assigned_to=task.assigned_to,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+        creator=task.creator,
+        assignee=task.assignee,
+        tags=tags_list,
+        comments_count=comments_count
+    )
 

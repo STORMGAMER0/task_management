@@ -162,6 +162,53 @@ class TaskService:
         # }
 
     @staticmethod
-    async def get
+    async def get_task_by_id(db: AsyncSession, task_id: str, current_user: User) -> Task:
+        cached_task = await get_cached_task_detail(str(task_id))
+        if cached_task:
+            logger.info(f"Task {task_id} retrieved from cache")
+
+        query = select(Task).options(selectinload(Task.creator),
+                                     selectinload(Task.assignee),
+                                     selectinload(Task.tags),
+                                     selectinload(Task.comments)
+                                     ).where(Task.id == task_id)
+
+        result = await db.execute(query)
+        task = result.scalar_one_or_none()
+
+        if not task:
+            raise HTTPException(
+                status_code= status.HTTP_404_NOT_FOUND,
+                detail = "task not found"
+            )
+
+        if current_user.role == UserRole.MEMBER:
+            if task.created_by != current_user.id and task.assigned_to != current_user.id:
+                raise HTTPException(status_code= status.HTTP_403_FORBIDDEN,
+                                    detail=" not authorized to view this task")
 
 
+        task_dict = {
+            "id": str(task.id),
+            "title": task.title,
+            "description": task.description,
+            "status": task.status.value,
+            "priority": task.priority.value,
+            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "created_by": str(task.created_by),
+            "assigned_to": str(task.assigned_to) if task.assigned_to else None,
+            "created_at": task.created_at.isoformat(),
+            "updated_at": task.updated_at.isoformat()
+        }
+
+        await cache_task_detail(str(task_id), task_dict)
+
+        return task
+
+    @staticmethod
+    async def update_task(
+            db: AsyncSession,
+            task_id: str,
+            task_update: TaskUpdate
+            curremt_user: User
+    ):

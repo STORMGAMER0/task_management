@@ -145,7 +145,7 @@ class CacheService:
             kwargs_hash = hashlib.md5(kwargs_str.encode()).hexdigest()[:8]
             parts.append(kwargs_hash)
 
-        return ":".join(kwargs_hash)
+        return ":".join(str(part) for part in parts)
 
 
 
