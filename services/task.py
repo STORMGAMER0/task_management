@@ -209,6 +209,69 @@ class TaskService:
     async def update_task(
             db: AsyncSession,
             task_id: str,
-            task_update: TaskUpdate
-            curremt_user: User
-    ):
+            task_update: TaskUpdate,
+            current_user: User
+    )-> Task:
+
+        task = await TaskService.get_task_by_id(db, task_id, current_user)
+
+        if current_user.role == UserRole.MEMBER and task.created_by != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to update this task"
+            )
+
+        update_data = task_update.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(task, field, value)
+
+        try:
+            await db.commit()
+            await db.refresh(task)
+
+            # Invalidate caches
+            await invalidate_task_cache(str(task_id))
+            await invalidate_all_task_lists()
+            logger.info(f"Task {task_id} updated, caches invalidated")
+
+            return task
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to update task {task_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update task"
+            )
+
+    @staticmethod
+    async def delete_task(db: AsyncSession, task_id: str, current_user: User) -> bool:
+        task = await TaskService.get_task_by_id(db, task_id, current_user)
+
+
+        if current_user.role == UserRole.MEMBER and task.created_by != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to delete this task"
+            )
+
+        try:
+            await db.delete(task)
+            await db.commit()
+
+
+            await invalidate_task_cache(str(task_id))
+            await invalidate_all_task_lists()
+            logger.info(f"Task {task_id} deleted, caches invalidated")
+
+            return True
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to delete task {task_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete task"
+            )
+
+

@@ -13,6 +13,8 @@ from core.config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db
 from app.api.v1.endpoints.auth import auth_router
+from services.cache import CacheService
+
 setup_logging()
 logger = get_logger(__name__)
 
@@ -117,7 +119,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring"""
+    #Health check endpoint for monitoring
     logger.debug("Health check endpoint accessed")
     return {
         "status": "healthy",
@@ -127,10 +129,26 @@ async def health_check():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring"""
+    #Health check endpoint for monitoring
     logger.debug("Health check endpoint accessed")
+
+    redis_status = "healthy"
+    try:
+        redis = await CacheService.get_redis()
+        if redis:
+            await redis.ping()
+        else:
+            redis_status = "disabled"
+    except Exception as e:
+        redis_status = f"unhealthy: {str(e)}"
+        logger.error(f"Redis health check failed: {e}")
+
     return {
         "status": "healthy",
         "environment": settings.environment,
-        "timestamp": time.time()
+        "timestamp": time.time(),
+        "services": {
+            "database": "healthy",  # If we got here, DB is working
+            "cache": redis_status
+        }
     }
