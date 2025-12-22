@@ -45,7 +45,7 @@ class ConnectionManager:
         #removes a websocket connection
 
         if user_id in self.active_connections:
-            if websocket in self.active_connections[user_id]
+            if websocket in self.active_connections[user_id]:
                 self.active_connections[user_id].remove(websocket)
             #remove user from dict if no more connections
             if not self.active_connections[user_id]:
@@ -79,13 +79,67 @@ class ConnectionManager:
         #broadcast a message to all connected users.
         logger.info(f"broadcasting message to {len(self.active_connections)} users")
         for user_id in list(self.active_connections.keys()):
-            if exclude_user and user_id == exclude_user
+            if exclude_user and user_id == exclude_user:
                 continue
             await self.send_personal_message(user_id, message)
 
 
     async def broadcast_to_task_viewers(self, task_id: str, message: dict):
-        #sen
+        #send message to all users currently viewing a task
+
+        if task_id not in self.task_viewers:
+            return
+        viewers = list(self.task_viewers[task_id])
+        logger.info(f"broadcasting to {len(viewers)} viewers of task {task_id}")
+
+        for user_id in viewers:
+            await self.send_personal_message(user_id, message)
+
+
+    async def broadcast_user_status(self, user_id: str, status: str):
+       # Notify all users about a user's online status.
+
+
+        await self.broadcast(
+            {
+                "type": "user_status",
+                "user_id": user_id,
+                "status": status,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            },
+            exclude_user=user_id  # Don't send to the user themselves
+        )
+
+    def join_task_view(self, user_id: str, task_id: str):
+        #Track that a user is viewing a task.
+        if task_id not in self.task_viewers:
+            self.task_viewers[task_id] = set()
+        self.task_viewers[task_id].add(user_id)
+        logger.info(f"User {user_id} joined task view {task_id}")
+
+    def leave_task_view(self, user_id: str, task_id: str):
+        #Track that a user stopped viewing a task.
+        if task_id in self.task_viewers and user_id in self.task_viewers[task_id]:
+            self.task_viewers[task_id].remove(user_id)
+            if not self.task_viewers[task_id]:
+                del self.task_viewers[task_id]
+            logger.info(f"User {user_id} left task view {task_id}")
+
+    def get_online_users(self) -> List[str]:
+        #Get list of all currently connected user IDs.
+        return list(self.active_connections.keys())
+
+    def get_task_viewers(self, task_id: str) -> List[str]:
+        #Get list of users currently viewing a task.
+        return list(self.task_viewers.get(task_id, set()))
+
+    def is_user_online(self, user_id: str) -> bool:
+        #Check if a user has any active connections.
+        return user_id in self.active_connections
+
+
+
+manager = ConnectionManager()
 
 
 

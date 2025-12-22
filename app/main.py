@@ -13,6 +13,7 @@ from core.config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db
 from app.api.v1.endpoints.auth import auth_router
+from app.api.v1.endpoints.websocket import websocket_router
 from services.cache import CacheService
 
 setup_logging()
@@ -42,9 +43,10 @@ app = FastAPI(
     redoc_url="/redoc" if settings.debug else None,
     lifespan=lifespan
 )
-app.include_router(auth_router)
-app.include_router(user_router)
-app.include_router(task_router)
+app.include_router(auth_router,prefix="/api/v1")
+app.include_router(user_router,prefix="/api/v1")
+app.include_router(task_router,prefix="/api/v1")
+app.include_router(websocket_router)
 
 @app.middleware("http")
 async def add_request_id_middleware(request: Request, call_next):
@@ -117,15 +119,6 @@ async def root():
         "health": "/health"
     }
 
-@app.get("/health")
-async def health_check():
-    #Health check endpoint for monitoring
-    logger.debug("Health check endpoint accessed")
-    return {
-        "status": "healthy",
-        "environment": settings.environment,
-        "timestamp": time.time()
-    }
 
 @app.get("/health")
 async def health_check():
@@ -152,3 +145,4 @@ async def health_check():
             "cache": redis_status
         }
     }
+

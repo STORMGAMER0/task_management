@@ -17,6 +17,7 @@ from services.cache import (get_cached_task_list, cache_task_list,
                             cache_task_detail,
                             invalidate_task_cache
                             )
+from services.notification import WebSocketNotificationService
 
 logger = get_logger(__name__)
 
@@ -40,6 +41,30 @@ class TaskService:
             await db.refresh(new_task)
 
             await invalidate_all_task_lists()
+
+            task_data = {
+                "id": str(new_task.id),
+                "title": new_task.title,
+                "description": new_task.description,
+                "status": new_task.status.value,
+                "priority": new_task.priority.value,
+                "assigned_to": str(new_task.assigned_to) if new_task.assigned_to else None,
+                "created_by": str(new_task.created_by)
+            }
+            await WebSocketNotificationService.notify_task_created(
+                str(new_task.id),
+                task_data,
+                str(created_by)
+            )
+
+            if new_task.assigned_to:
+                await WebSocketNotificationService.notify_task_assigned(
+                    str(new_task.id),
+                    task_data,
+                    str(new_task.assigned_to),
+                    str(created_by)
+                )
+
             logger.info(f"Task created with id {new_task.id}")
             return new_task
 
@@ -220,10 +245,18 @@ class TaskService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to update this task"
             )
+        #track changes for notifications
+        changes = {}
+        old_status = task.status.value if task.status else None
+        old_assigned_to = str(task.assigned_to) if task.assigned_to else None
 
         update_data = task_update.model_dump(exclude_unset=True)
         for field, value in update_data.items():
+            old_value = getattr(task, field)
+            if old_value != value:
+                changes[field] = {"old": str(old_value), "new": str(value)}
             setattr(task, field, value)
+
 
         try:
             await db.commit()
@@ -232,6 +265,44 @@ class TaskService:
             # Invalidate caches
             await invalidate_task_cache(str(task_id))
             await invalidate_all_task_lists()
+
+            # Prepare task data for notification
+            task_data = {
+                "id": str(task.id),
+                "title": task.title,
+                "description": task.description,
+                "status": task.status.value,
+                "priority": task.priority.value,
+                "assigned_to": str(task.assigned_to) if task.assigned_to else None,
+                "created_by": str(task.created_by)
+            }
+
+            # Send WebSocket notification
+            await WebSocketNotificationService.notify_task_updated(
+                str(task_id),
+                task_data,
+                str(current_user.id),
+                changes
+            )
+
+            # If status changed, send specific notification
+            if "status" in changes:
+                await WebSocketNotificationService.notify_status_changed(
+                    str(task_id),
+                    changes["status"]["old"],
+                    changes["status"]["new"],
+                    str(current_user.id)
+                )
+
+            # If assignment changed, notify new assignee
+            new_assigned_to = str(task.assigned_to) if task.assigned_to else None
+            if new_assigned_to and new_assigned_to != old_assigned_to:
+                await WebSocketNotificationService.notify_task_assigned(
+                    str(task_id),
+                    task_data,
+                    new_assigned_to,
+                    str(current_user.id)
+                )
             logger.info(f"Task {task_id} updated, caches invalidated")
 
             return task
@@ -262,6 +333,11 @@ class TaskService:
 
             await invalidate_task_cache(str(task_id))
             await invalidate_all_task_lists()
+
+            await WebSocketNotificationService.notify_task_deleted(
+                str(task_id),
+                str(current_user.id)
+            )
             logger.info(f"Task {task_id} deleted, caches invalidated")
 
             return True

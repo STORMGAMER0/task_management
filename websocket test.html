@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .panel {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .panel h2 {
+            color: #374151;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .messages {
+            grid-column: 1 / -1;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #1f2937;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 4px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .message.sent {
+            background: #1e40af;
+            color: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .message.received {
+            background: #065f46;
+            color: #d1fae5;
+            border-left: 4px solid #10b981;
+        }
+
+        .message.error {
+            background: #991b1b;
+            color: #fecaca;
+            border-left: 4px solid #ef4444;
+        }
+
+        .message .timestamp {
+            opacity: 0.7;
+            font-size: 11px;
+            margin-bottom: 4px;
+        }
+
+        .message .type {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .button-group button {
+            margin-top: 0;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border: 2px solid #3b82f6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 13px;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 WebSocket Test Client</h1>
+            <p>Real-time Task Management System</p>
+            <div id="status" class="status disconnected">DISCONNECTED</div>
+        </div>
+
+        <div class="main">
+            <div class="panel">
+                <h2>Connection</h2>
+                <div class="input-group">
+                    <label for="token">JWT Access Token</label>
+                    <input type="text" id="token" placeholder="Paste your access token here">
+                </div>
+                <button onclick="connect()" id="connectBtn">Connect</button>
+                <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+
+                <div class="info-box">
+                    <strong>How to get token:</strong><br>
+                    1. Login via POST /api/v1/auth/login<br>
+                    2. Copy the access_token from response<br>
+                    3. Paste it above and click Connect
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Actions</h2>
+                <div class="input-group">
+                    <label for="taskId">Task ID</label>
+                    <input type="text" id="taskId" placeholder="Enter task UUID">
+                </div>
+
+                <div class="button-group">
+                    <button onclick="sendPing()" id="pingBtn" disabled>Send Ping</button>
+                    <button onclick="getOnlineUsers()" id="onlineBtn" disabled>Get Online Users</button>
+                    <button onclick="joinTask()" id="joinBtn" disabled>Join Task View</button>
+                    <button onclick="leaveTask()" id="leaveBtn" disabled>Leave Task View</button>
+                </div>
+            </div>
+
+            <div class="panel messages" id="messages">
+                <div class="message received">
+                    <div class="timestamp">Waiting for connection...</div>
+                    <div>Messages will appear here</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        const messagesEl = document.getElementById('messages');
+
+        function addMessage(type, data, direction = 'received') {
+            const msg = document.createElement('div');
+            msg.className = `message ${direction}`;
+
+            const timestamp = new Date().toLocaleTimeString();
+            msg.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                <div class="type">${type.toUpperCase()}</div>
+                <div>${JSON.stringify(data, null, 2)}</div>
+            `;
+
+            messagesEl.appendChild(msg);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const actionBtns = ['pingBtn', 'onlineBtn', 'joinBtn', 'leaveBtn'];
+
+            if (connected) {
+                statusEl.textContent = 'CONNECTED';
+                statusEl.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                actionBtns.forEach(id => document.getElementById(id).disabled = false);
+            } else {
+                statusEl.textContent = 'DISCONNECTED';
+                statusEl.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                actionBtns.forEach(id => document.getElementById(id).disabled = true);
+            }
+        }
+
+        function connect() {
+            const token = document.getElementById('token').value.trim();
+
+            if (!token) {
+                alert('Please enter your access token');
+                return;
+            }
+
+            // Connect to WebSocket
+            const wsUrl = `ws://localhost:8000/ws?token=${token}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                updateStatus(true);
+                addMessage('connection', { status: 'Connected to server' });
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    addMessage(data.type || 'message', data);
+                } catch (e) {
+                    addMessage('error', { error: 'Failed to parse message', raw: event.data }, 'error');
+                }
+            };
+
+            ws.onerror = (error) => {
+                addMessage('error', { error: 'WebSocket error occurred' }, 'error');
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = () => {
+                updateStatus(false);
+                addMessage('connection', { status: 'Disconnected from server' }, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendPing() {
+            if (!ws) return;
+
+            const message = {
+                type: 'ping',
+                timestamp: new Date().toISOString()
+            };
+
+            ws.send(JSON.stringify(message));
+            addMessage('ping', message, 'sent');
+        }
+
+        function getOnlineUsers() {
+            if (!ws) return;
+
+            const message = { type: 'get_online_users' };
+            ws.send(JSON.stringify(message));
+            addMessage('get_online_users', message, 'sent');
+        }
+
+        function joinTask() {
+            if (!ws) return;
+
+            const taskId = document.getElementById('taskId').value.trim();
+            if (!taskId) {
+                alert('Please enter a task ID');
+                return;
+            }
+
+            const message = {
+                type: 'join_task',
+                task_id: taskId
+            };
+
+            ws.send(JSON.stringify(message));
+            addMessage('join_task', message, 'sent');
+        }
+
+        function leaveTask() {
+            if (!ws) return;
+
+            const taskId = document.getElementById('taskId').value.trim();
+            if (!taskId) {
+                alert('Please enter a task ID');
+                return;
+            }
+
+            const message = {
+                type: 'leave_task',
+                task_id: taskId
+            };
+
+            ws.send(JSON.stringify(message));
+            addMessage('leave_task', message, 'sent');
+        }
+    </script>
+</body>
+</html>
