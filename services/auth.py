@@ -6,12 +6,10 @@ from sqlalchemy import select
 from fastapi import HTTPException, status
 
 from app.api.v1.endpoints.auth import logger
-
-
 from core.security import hash_password, verify_password, create_access_token,create_refresh_token
 from schemas.auth import RegisterUser, Login
-
 from models.user import User, UserRole
+from tasks.email import send_welcome_email
 
 
 class AuthService:
@@ -44,6 +42,17 @@ class AuthService:
             await db.refresh(new_user)
 
             logger.info(f"User registered: {new_user.email}")
+
+            try:
+                send_welcome_email.delay(
+                    user_email=new_user.email,
+                    user_name=new_user.full_name
+                )
+                logger.info(f"Welcome email queued for {new_user.email}")
+            except Exception as e:
+                # Don't fail registration if email fails
+                logger.error(f"Failed to queue welcome email: {e}")
+
             return new_user
 
         except Exception as e:

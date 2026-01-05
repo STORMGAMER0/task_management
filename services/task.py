@@ -18,6 +18,7 @@ from services.cache import (get_cached_task_list, cache_task_list,
                             invalidate_task_cache
                             )
 from services.notification import WebSocketNotificationService
+from tasks.email import send_task_assigned_email, send_task_comment_notification
 
 logger = get_logger(__name__)
 
@@ -64,6 +65,33 @@ class TaskService:
                     str(new_task.assigned_to),
                     str(created_by)
                 )
+
+                try:
+                    from sqlalchemy import select
+                    from models.user import User
+
+                    # Get assignee and creator details
+                    assignee_result = await db.execute(
+                        select(User).where(User.id == new_task.assigned_to)
+                    )
+                    assignee = assignee_result.scalar_one_or_none()
+
+                    creator_result = await db.execute(
+                        select(User).where(User.id == created_by)
+                    )
+                    creator = creator_result.scalar_one_or_none()
+
+                    if assignee and creator:
+                        send_task_assigned_email.delay(
+                            user_email=assignee.email,
+                            task_title=new_task.title,
+                            assigned_by=creator.full_name
+                        )
+                        logger.info(f"Assignment email queued for {assignee.email}")
+                except Exception as e:
+                    logger.error(f"Failed to queue assignment email: {e}")
+
+
 
             logger.info(f"Task created with id {new_task.id}")
             return new_task
