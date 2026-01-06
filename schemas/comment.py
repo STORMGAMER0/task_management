@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 
@@ -35,3 +35,13 @@ class CommentWithAuthor(CommentResponse):
     class Config:
         from_attributes = True
 
+class CommentListResponse(BaseModel):
+
+    comments: List[CommentWithAuthor]
+    total: int
+    page: int
+    limit: int
+
+    @property
+    def total_pages(self) -> int:
+        return (self.total + self.limit - 1) // self.limit
