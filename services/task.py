@@ -1,5 +1,5 @@
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import HTTPException, status
 from sqlalchemy import select, func, or_
@@ -111,7 +111,9 @@ class TaskService:
     @staticmethod
     async def get_tasks(db: AsyncSession, current_user: User, status: Optional[TaskStatus] = None,
                         priority: Optional[TaskPriority] = None, search: Optional[str] = None,
-                        assigned_to: Optional[UUID] = None, sort_by: str = "created_at",
+                        assigned_to: Optional[UUID] = None,
+                        tags: Optional[List[str]] = None,
+                        sort_by: str = "created_at",
                         order: str = "desc", page: int = 1, limit: int = 10):
 
         filters = {
@@ -160,6 +162,12 @@ class TaskService:
         if assigned_to:
             query = query.where(Task.assigned_to == assigned_to)
 
+        if tags:
+            from models.tag import Tag, task_tags
+            query = query.join(task_tags).join(Tag).where(
+                Tag.name.in_([tag.lower() for tag in tags])
+            )
+
         if order == "asc":
             query = query.order_by(getattr(Task, sort_by).asc())
         else:
@@ -168,6 +176,7 @@ class TaskService:
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await db.execute(count_query)
         total_count = total_result.scalar()
+
 
         offset = (page - 1) * limit
         query = query.offset(offset).limit(limit)

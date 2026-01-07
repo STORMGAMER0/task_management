@@ -25,9 +25,7 @@ class CommentResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        json_encoders = {
-            str,
-        }
+
 
 class CommentWithAuthor(CommentResponse):
     author: "UserResponse"

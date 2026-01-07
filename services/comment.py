@@ -149,3 +149,93 @@ class CommentService:
         )
         total_result = await db.execute(count_query)
         total_count = total_result.scalar()
+
+        # Paginate
+        offset = (page - 1) * limit
+        query = query.offset(offset).limit(limit)
+
+        result = await db.execute(query)
+        comments = result.scalars().all()
+
+        logger.info(f"Retrieved {len(comments)} comments for task {task_id}")
+
+        return {
+            "comments": comments,
+            "total": total_count,
+            "page": page,
+            "limit": limit
+        }
+
+    @staticmethod
+    async def update_comment(
+            db: AsyncSession,
+            comment_id: str,
+            comment_update: CommentUpdate,
+            current_user: User
+    ) -> Comment:
+        #Update a comment (only by author)
+        # Get comment
+        query = select(Comment).options(
+            selectinload(Comment.author)
+        ).where(Comment.id == comment_id)
+        result = await db.execute(query)
+        comment = result.scalar_one_or_none()
+
+        if not comment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Comment not found"
+            )
+
+        # Permission check: only author can edit
+        if comment.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to edit this comment"
+            )
+
+        # Update
+        comment.content = comment_update.content
+        await db.commit()
+        await db.refresh(comment)
+
+        logger.info(f"Comment {comment_id} updated by user {current_user.id}")
+
+        return comment
+
+    @staticmethod
+    async def delete_comment(
+            db: AsyncSession,
+            comment_id: str,
+            current_user: User
+    ) -> bool:
+
+        #Delete a comment (soft delete).
+        #Only author or admin can delete.
+
+        # Get comment
+        query = select(Comment).where(Comment.id == comment_id)
+        result = await db.execute(query)
+        comment = result.scalar_one_or_none()
+
+        if not comment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Comment not found"
+            )
+
+        # Permission check: author or admin
+        if comment.user_id != current_user.id and current_user.role != UserRole.ADMIN:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to delete this comment"
+            )
+
+        # Soft delete
+        from datetime import datetime, timezone
+        comment.deleted_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        logger.info(f"Comment {comment_id} deleted by user {current_user.id}")
+
+        return True

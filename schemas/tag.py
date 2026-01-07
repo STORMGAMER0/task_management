@@ -1,8 +1,9 @@
-from pydantic import BaseModel,Field,field_validator
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 import re
+
 
 class TagBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
@@ -19,6 +20,7 @@ class TagBase(BaseModel):
 
 class TagCreate(TagBase):
     pass
+
 
 class TagUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=50)
@@ -45,6 +47,15 @@ class TagResponse(BaseModel):
 
     class Config:
         from_attributes = True
-        json_encoders = {
-            UUID: str,
-        }
+
+
+class TagListResponse(BaseModel):
+    """Paginated list of tags"""
+    tags: List[TagResponse]
+    total: int
+    page: int
+    limit: int
+
+    @property
+    def total_pages(self) -> int:
+        return (self.total + self.limit - 1) // self.limit
