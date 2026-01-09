@@ -47,6 +47,7 @@ class TokenRefreshResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-
+class LogoutRequest(BaseModel):
+    refresh_token: Optional[str] = None
 
 

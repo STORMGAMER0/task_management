@@ -17,6 +17,7 @@ from app.api.v1.endpoints.websocket import websocket_router
 from services.cache import CacheService
 from app.api.v1.endpoints.comments import comment_router
 from app.api.v1.endpoints.tags import tag_router, task_tag_router
+from app.api.v1.endpoints.rate_limit import rate_limit_router
 
 setup_logging()
 logger = get_logger(__name__)
@@ -52,6 +53,7 @@ app.include_router(comment_router, prefix="/api/v1")
 app.include_router(websocket_router)
 app.include_router(tag_router, prefix="/api/v1")
 app.include_router(task_tag_router, prefix="/api/v1")
+app.include_router(rate_limit_router, prefix="/api/v1")
 
 @app.middleware("http")
 async def add_request_id_middleware(request: Request, call_next):

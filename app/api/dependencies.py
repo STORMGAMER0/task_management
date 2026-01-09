@@ -8,6 +8,8 @@ from core.database import get_db
 from core.security import decode_token
 from models.user import User, UserRole
 from core.logger import get_logger
+from utils.rate_limiter import RateLimiter
+from services.token_blacklist import TokenBlacklistService
 
 logger = get_logger(__name__)
 
@@ -22,6 +24,16 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
                                           detail="could not validate credentials",
                                           headers={"WWW-Authenticate": "Bearer"}, )
     token = credentials.credentials
+
+    # Check if token is blacklisted (logged out)
+    is_blacklisted = await TokenBlacklistService.is_token_blacklisted(token)
+    if is_blacklisted:
+        logger.warning("Attempt to use blacklisted token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked"
+        )
+
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
@@ -45,4 +57,11 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     logger.info(f"Decoded user_id from token: {user_id}")
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
+
+    if not user:
+        raise credentials_exception
+
+        # Check rate limit
+    await RateLimiter.check_rate_limit(str(user.id), endpoint="api")
+
     return user
