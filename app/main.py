@@ -7,6 +7,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 
+from app.api.v1.endpoints.export import export_router
 from app.api.v1.endpoints.tasks import task_router
 from app.api.v1.endpoints.users import user_router
 from core.config import settings
@@ -54,6 +55,7 @@ app.include_router(websocket_router)
 app.include_router(tag_router, prefix="/api/v1")
 app.include_router(task_tag_router, prefix="/api/v1")
 app.include_router(rate_limit_router, prefix="/api/v1")
+app.include_router(export_router, prefix="/api/v1")
 
 @app.middleware("http")
 async def add_request_id_middleware(request: Request, call_next):
