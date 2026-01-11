@@ -17,10 +17,9 @@ Base = declarative_base()
 async def init_db():
 
     logger.info("Verifying database connection...")
-    from models.user import User
-    from models.task import Task  # ← Make sure this exists
-    from models.comment import Comment
-    from models.tag import Tag, task_tags
+    import models
+
+    logger.info("✅ Models imported")
     try:
         async with engine.begin() as conn:
             # Test connection

@@ -1,7 +1,3 @@
-"""
-Celery Configuration for Background Task Processing
-Minimal working version to get started quickly.
-"""
 
 from celery import Celery
 from celery.schedules import crontab
@@ -16,11 +12,6 @@ celery_app = Celery(
     "task_management",
     broker=settings.celery_broker_url or settings.redis_url,
     backend=settings.celery_broker_backend or settings.redis_url,
-    include=[
-        'tasks.email',
-        'tasks.reminders',
-        'tasks.reports',
-    ]
 )
 
 # Basic configuration
@@ -33,10 +24,20 @@ celery_app.conf.update(
     task_track_started=True,
     task_time_limit=600,
     result_expires=3600,
+    # Add timeout settings for Redis
+    broker_connection_retry_on_startup=True,
+    broker_connection_timeout=30,
+    broker_connection_max_retries=10,
 )
 
-# Remove autodiscover - we use 'include' instead
-# celery_app.autodiscover_tasks(['tasks'])
+
+celery_app.autodiscover_tasks(['tasks'], force=True)
+
+try:
+    from tasks import email, export, reminders, reports
+    logger.info("✅ Task modules imported successfully")
+except ImportError as e:
+    logger.error(f"Failed to import task modules: {e}")
 
 
 # Celery Beat Schedule for Periodic Tasks
@@ -62,7 +63,7 @@ celery_app.conf.beat_schedule = {
 
 @celery_app.task(bind=True)
 def debug_task(self):
-    """Debug task to test if Celery is working."""
+
     logger.info(f'Request: {self.request!r}')
     return 'Celery is working!'
 

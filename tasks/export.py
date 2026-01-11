@@ -1,10 +1,15 @@
-
 import csv
 import io
 from datetime import datetime, timezone
 from sqlalchemy import select, and_, or_
 import asyncio
 from typing import Optional, List
+from uuid import UUID
+
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.celery_app import celery_app
 from core.logger import get_logger
@@ -39,7 +44,6 @@ def export_tasks_csv(
 
 
 async def _export_tasks_csv_async(user_id: str, filters: dict):
-    """Async helper for database operations."""
     async with async_session_maker() as db:
         try:
             # Get user
@@ -61,15 +65,26 @@ async def _export_tasks_csv_async(user_id: str, filters: dict):
                     )
                 )
 
-            # Apply filters
+            # Apply filters with proper type conversion
             if filters.get('status'):
-                query = query.where(Task.status == TaskStatus(filters['status']))
+                try:
+                    query = query.where(Task.status == TaskStatus(filters['status']))
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid status filter: {filters['status']}")
 
             if filters.get('priority'):
-                query = query.where(Task.priority == TaskPriority(filters['priority']))
+                try:
+                    query = query.where(Task.priority == TaskPriority(filters['priority']))
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid priority filter: {filters['priority']}")
 
             if filters.get('assigned_to'):
-                query = query.where(Task.assigned_to == filters['assigned_to'])
+                try:
+                    # Convert string UUID to UUID object
+                    assigned_to_uuid = UUID(filters['assigned_to']) if isinstance(filters['assigned_to'], str) else filters['assigned_to']
+                    query = query.where(Task.assigned_to == assigned_to_uuid)
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid assigned_to filter: {filters['assigned_to']}")
 
             # Execute query
             result = await db.execute(query)
@@ -178,12 +193,26 @@ async def _export_tasks_pdf_async(user_id: str, filters: dict):
                     )
                 )
 
-            # Apply filters
+            # Apply filters with proper type conversion
             if filters.get('status'):
-                query = query.where(Task.status == TaskStatus(filters['status']))
+                try:
+                    query = query.where(Task.status == TaskStatus(filters['status']))
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid status filter: {filters['status']}")
 
             if filters.get('priority'):
-                query = query.where(Task.priority == TaskPriority(filters['priority']))
+                try:
+                    query = query.where(Task.priority == TaskPriority(filters['priority']))
+                except (ValueError, KeyError) as e:
+                    logger.warning(f"Invalid priority filter: {filters['priority']}")
+
+            if filters.get('assigned_to'):
+                try:
+                    # Convert string UUID to UUID object
+                    assigned_to_uuid = UUID(filters['assigned_to']) if isinstance(filters['assigned_to'], str) else filters['assigned_to']
+                    query = query.where(Task.assigned_to == assigned_to_uuid)
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid assigned_to filter: {filters['assigned_to']}")
 
             # Execute query
             result = await db.execute(query)
