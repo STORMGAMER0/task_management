@@ -1,0 +1,88 @@
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: task-management-db
+    env: docker
+    plan: free
+    region: oregon
+    databases:
+      - name: task_management
+        user: task_user
+
+  # FastAPI Web Service
+  - type: web
+    name: task-management-api
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: task-management-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRES_MINUTES
+        value: 30
+      - key: JWT_REFRESH_TOKEN_EXPIRES_DAYS
+        value: 7
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://yourdomain.com
+      - key: LOG_LEVEL
+        value: INFO
+      - key: DB_POOL_SIZE
+        value: 10
+      - key: DB_MAX_OVERFLOW
+        value: 20
+      - key: CACHE_TTL_TASKS_LIST
+        value: 60
+      - key: CACHE_TTL_TASK_DETAIL
+        value: 300
+      - key: CACHE_TTL_USER_PROFILE
+        value: 300
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 100
+      - key: API_V1_PREFIX
+        value: /api/v1
+
+  # Celery Worker (Background Tasks)
+  - type: worker
+    name: task-management-worker
+    env: python
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A core.celery_app worker --loglevel=info
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: task-management-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false

@@ -7,7 +7,7 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-engine = create_async_engine(settings.database_url, pool_size= settings.db_pool_size, max_overflow=settings.db_max_overflow,echo=settings.debug,future=True)
+engine = create_async_engine(settings.database_url_async, pool_size= settings.db_pool_size, max_overflow=settings.db_max_overflow,echo=settings.debug,future=True)
 
 async_session_maker = async_sessionmaker(engine,class_=AsyncSession,expire_on_commit=False,autocommit = False, autoflush=False)
 

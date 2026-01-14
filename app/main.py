@@ -150,7 +150,7 @@ async def health_check():
         "environment": settings.environment,
         "timestamp": time.time(),
         "services": {
-            "database": "healthy",  # If we got here, DB is working
+            "database": "healthy",
             "cache": redis_status
         }
     }

@@ -7,7 +7,7 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Create Celery app
+
 celery_app = Celery(
     "task_management",
     broker=settings.celery_broker_url or settings.redis_url,
