@@ -1,11 +1,11 @@
-services:
-  # PostgreSQL Database
-  - type: pserv
-    name: task-management-db
-    env: docker
+databases:
+  - name: task-management-db
+    databaseName: task_management
+    user: task_user
     plan: free
     region: oregon
 
+services:
   # FastAPI Web Service
   - type: web
     name: task-management-api
