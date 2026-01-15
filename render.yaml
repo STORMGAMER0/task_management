@@ -5,9 +5,6 @@ services:
     env: docker
     plan: free
     region: oregon
-    databases:
-      - name: task_management
-        user: task_user
 
   # FastAPI Web Service
   - type: web
